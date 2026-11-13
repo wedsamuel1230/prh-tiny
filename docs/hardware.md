@@ -21,11 +21,18 @@ The second encoder (text) never ships: the prototypes already live in its space.
 ## What the board actually reports
 
 ```
-I (785) camera: Detected OV2640 camera
-I (885) cam_hal: cam config ok
-I (945) prh: camera up; output width 64, 108 KiB of int8 activation buffers
-{"class":"purple circle","score":0.568,"ms":471}
+I (901) camera: Detected OV2640 camera
+I (1061) prh: camera up: 240x240, 108 KiB of int8 activation buffers
+I (1221) prh: join Wi-Fi 'prh-tiny' (password 'prhtiny123') then open http://192.168.4.1/
+{"class":"paper","score":0.464,"ms":475}
 ```
+
+The board raises its own access point, so there are no credentials to configure: join `prh-tiny`
+and open `http://192.168.4.1/` to watch the frame it just captured beside the class it assigned.
+
+Two budgets bite here. The preview frame (240×240 RGB565, 115 KiB) has to live in PSRAM — with it in
+DRAM the Wi-Fi stack overflows `dram0_0_seg` by 19 KB. And the app partition must be larger than the
+default 1 MiB once Wi-Fi and an HTTP server are linked in; `esp32/partitions.csv` gives it 4 MiB.
 
 ## RAM
 

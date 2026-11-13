@@ -15,14 +15,21 @@ if not os.path.isdir(SRC):
 sys.path.insert(0, SRC)
 os.chdir("/kaggle/working")
 
-STEPS = int(os.environ.get("PRH_STEPS", 6000))
-N = int(os.environ.get("PRH_N", 12000))
+STEPS = int(os.environ.get("PRH_STEPS", 4000))
+N = int(os.environ.get("PRH_N", 2000))
 BATCH = int(os.environ.get("PRH_BATCH", 128))
+DATA = os.environ.get("PRH_DATA", "trash")
+ROOT = os.environ.get("PRH_ROOT", "/kaggle/input/trashnet/dataset-resized")
+CH = os.environ.get("PRH_CH", "3,48,96,128,192")     # ~900k parameters
 
 print(json.dumps({"steps": STEPS, "n": N, "batch": BATCH}), flush=True)
 
-subprocess.run([sys.executable, f"{SRC}/train.py", "--steps", str(STEPS), "--n", str(N),
-                "--batch", str(BATCH), "--out", "runs/tiny.pt", "--device", "auto"], check=True)
-subprocess.run([sys.executable, f"{SRC}/export_c.py", "runs/tiny.pt"], check=True)
+os.environ["PRH_CH"] = CH
+subprocess.run([sys.executable, f"{SRC}/train.py", "--data", DATA, "--root", ROOT,
+                "--steps", str(STEPS), "--n", str(N), "--batch", str(BATCH),
+                "--out", "runs/kaggle.pt", "--device", "auto"], check=True)
+subprocess.run([sys.executable, f"{SRC}/probe.py", "--data", DATA, "--root", ROOT,
+                "--ckpt", "runs/kaggle.pt"], check=True)
+subprocess.run([sys.executable, f"{SRC}/export_c.py", "runs/kaggle.pt", "--root", ROOT], check=True)
 
 print(json.dumps({"files": sorted(p for p in os.listdir("/kaggle/working"))}), flush=True)

@@ -15,7 +15,7 @@ USER_NAME="$(kaggle config view | sed -n 's/^- username: //p' | tr -d '[:space:]
 
 rm -rf "$UP"
 mkdir -p "$UP"
-cp "$ROOT"/{synth.py,model.py,train.py,export_c.py} "$UP"/
+cp "$ROOT"/{synth.py,model.py,train.py,export_c.py,compare.py,probe.py,data_real.py,data_stl.py,data_trash.py,requirements.txt} "$UP"/
 
 cat > "$UP/dataset-metadata.json" <<EOF
 {

@@ -88,22 +88,33 @@ def caption(rng, label, max_len=8):
     return ids + [PAD] * (max_len - len(ids))
 
 
+def split(root="data/trash/dataset-resized", holdout=0.25, seed=0):
+    """Disjoint train / test by photograph. `test_set` used to sample from the same pool, which
+    leaked training images into every measured accuracy; do not reintroduce that."""
+    x, y = _load_all(root)
+    rng = np.random.default_rng(seed)
+    idx = rng.permutation(len(x))
+    cut = int(len(x) * (1 - holdout))
+    tr, te = idx[:cut], idx[cut:]
+    return (x[tr], y[tr]), (x[te], y[te])
+
+
 def make_dataset(n, seed=0, max_len=8, root="data/trash/dataset-resized"):
     rng = np.random.default_rng(seed)
-    x, y = _load_all(root)
-    idx = rng.permutation(len(x))[:n]
-    imgs = np.stack([[augment(rng, x[i]) for i in idx],
-                     [augment(rng, x[i]) for i in idx]])
-    txts = np.stack([[caption(rng, int(y[i]), max_len) for i in idx],
-                     [caption(rng, int(y[i]), max_len) for i in idx]])
-    return imgs, txts, y[idx], CLASSES
+    (xtr, ytr), _ = split(root, seed=seed)
+    n = min(n, len(xtr))
+    idx = rng.permutation(len(xtr))[:n]
+    imgs = np.stack([[augment(rng, xtr[i]) for i in idx],
+                     [augment(rng, xtr[i]) for i in idx]])
+    txts = np.stack([[caption(rng, int(ytr[i]), max_len) for i in idx],
+                     [caption(rng, int(ytr[i]), max_len) for i in idx]])
+    return imgs, txts, ytr[idx], CLASSES
 
 
 def test_set(root="data/trash/dataset-resized", n=400, seed=0, max_len=8):
-    rng = np.random.default_rng(seed + 991)
-    x, y = _load_all(root)
-    idx = rng.permutation(len(x))[:n]
-    return x[idx], y[idx]
+    _, (xte, yte) = split(root, seed=seed)
+    idx = np.random.default_rng(seed + 991).permutation(len(xte))[:n]
+    return xte[idx], yte[idx]
 
 
 def class_prototype_sentences(rng, per_class=8, max_len=8):

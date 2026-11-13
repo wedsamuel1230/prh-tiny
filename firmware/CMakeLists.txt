@@ -1,5 +1,5 @@
 idf_component_register(
     SRCS "app_main.c" "prh_infer.c" "prh_net.c" "prh_rot.c" "prh_proto.c"
     INCLUDE_DIRS "."
-    REQUIRES esp32-camera esp_timer heap
+    REQUIRES esp32-camera esp_timer heap esp_wifi esp_http_server nvs_flash esp_netif esp_event
 )

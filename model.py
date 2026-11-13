@@ -5,13 +5,15 @@ stride-2 convolutions, ReLU, global average pool, linear. No normalisation layer
 no attention — nothing a 240 MHz MCU cannot do.
 """
 
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 IMG_SIZE = 96
-IMG_CH = [3, 24, 48, 64]   # three stride-2 convs: 96 -> 48 -> 24 -> 12
-D_IMG = 64    # must not exceed the pooled feature width, or SIGReg has no attainable optimum
+IMG_CH = [int(v) for v in os.environ.get("PRH_CH", "3,24,48,64").split(",")]
+D_IMG = int(os.environ.get("PRH_D", IMG_CH[-1]))   # > IMG_CH[-1] leaves SIGReg unsatisfiable
 D_TXT = 256
 
 

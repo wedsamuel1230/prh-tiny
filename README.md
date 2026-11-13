@@ -21,24 +21,36 @@ categories (TrashNet), one architecture, one step budget, three arms:
 
 | arm | accuracy | image labels used | how long |
 |---|---|---|---|
-| plain supervised, same CNN end to end | **66.3 %** | all 2,500 | 2.3 min |
-| the paper's method, classes as sentences | **48.0 %** | **0** | 3.6 min |
-| the paper's method + 20 labelled photos per class | **48.8 %** | 120 | 0.1 min |
+| plain supervised, same CNN end to end | **58.1 %** | all | 3.6 min |
+| the paper's method, classes as sentences | **46.9 %** | **0** | 4.0 min |
+| the paper's method + 20 labelled photos per class | **49.2 %** | 120 | 0.1 min |
+| frozen encoder + linear classifier (probe) | **55.7 %** | all | 10 s |
 
-Chance is 16.7 %. Same encoder (42,960 parameters), same 900 optimisation steps, same photographs.
-
-Read the table as the project's conclusion:
-
-- **The method costs accuracy.** A supervised head on the same CNN, trained on the same photos for
-  the same number of steps, is better. The gap is the price of never using an image–label pair.
-- **The method buys editability.** The class list is text. Nothing about "plastic" is baked into the
-  weights; the prototypes are sentences, so a class can be renamed, removed, or added without
-  touching the model or the flash image.
-- **The cost is at deployment-zero.** Once trained, the device carries the same 59 KiB either way,
-  and the rotation is the cheapest object in the pipeline (16 KiB, 0.3 % of a forward pass).
+Chance is 16.7 %. Same encoder (42,960 parameters), same 900 optimisation steps, disjoint train and
+test photographs (1,895 / 632). The last row is the diagnostic: it freezes the encoder and trains only
+a linear head, so it measures how much class information the encoder actually holds.
 
 If your classes are fixed and your labels exist, use supervised learning. This repository is for the
 case where they are not, and for the question of whether the theory survives at 43 k parameters.
+
+## Is the model too small, or is the method unsuitable?
+
+Both, and the probe separates them. A linear classifier on the **frozen** encoder gets 55.7 %, while
+the same encoder end-to-end supervised gets 58.1 %: the representation is already close to what a
+trained classifier can extract, so the 43 k encoder — not the self-supervised objective — is what
+caps the accuracy near 58 %.
+
+The paper's route then gives up another 9 points (55.7 → 46.9 %), because a sentence prototype is a
+cruder readout than a trained head. That is the method's cost at this scale, and it does not
+disappear with more parameters.
+
+Scaling the encoder is therefore only half an answer: 1,895 training photographs cannot feed
+millions of parameters. The honest next step is both — a wider CNN *and* a larger corpus
+(STL-10's 5,000, or COCO), which is exactly what `kaggle/` is packaged for:
+
+```bash
+./kaggle/pack.sh --push     # PRH_CH=3,48,96,128,192 → ~900 k parameters, GPU
+```
 
 ## What is tested, and how faithfully
 
@@ -79,28 +91,11 @@ python train.py --data trash --root data/trash/dataset-resized \
                 --steps 900 --batch 64 --n 2500 --out runs/trash.pt
 python compare.py --data trash --root data/trash/dataset-resized --ckpt runs/trash.pt
 
-python export_c.py   runs/trash.pt --root data/trash/dataset-resized
-python export_web.py runs/trash.pt --root data/trash/dataset-resized
+python export_c.py runs/trash.pt --root data/trash/dataset-resized
 make test            # the generated C must match PyTorch (0.9986 cosine, same class)
 ```
 
 `--data synth` runs without any download; `--data cifar` and `--data stl` are also wired.
-
-## Web demo
-
-`docs/` is two static pages (GitHub Pages serves this folder), no build step and no framework:
-
-- [`docs/index.html`](docs/index.html) — the image side: one photograph, the nearest caption
-  prototypes, and a frame switcher that includes frames the model gets wrong.
-- [`docs/chat.html`](docs/chat.html) — the text side: type a sentence, get the frames nearest to it.
-
-```bash
-python -m http.server 8000     # then open http://localhost:8000/docs/
-```
-
-`docs/engine.js` dequantises the same int8 weights and runs the same convolutions in JavaScript:
-~30 ms per frame, against 471 ms on the board. `docs/mockups/` holds the six design directions that
-were compared before the final pair and is not part of the product.
 
 ## Flash it
 
@@ -109,6 +104,16 @@ cd esp32
 idf.py set-target esp32s3          # menuconfig: PSRAM octal, 80 MHz
 idf.py -p /dev/tty.usbmodem* flash monitor
 ```
+
+The board raises its own Wi-Fi network — no credentials to configure:
+
+```
+join  prh-tiny / prhtiny123
+open  http://192.168.4.1/
+```
+
+The page shows the frame the camera just captured, side by side with the class the model assigned
+to it, so you can see the input and the answer together. The serial port prints the same thing:
 
 ```json
 {"class":"plastic","score":0.412,"ms":471}
@@ -125,11 +130,10 @@ model.py         image CNN, text encoder, invariance + SIGReg
 train.py         two encoders separately, Procrustes fit, CCA, zero-shot
 compare.py       the three arms above, one table
 export_c.py      int8 quantisation and every generated C file
-export_web.py    the same weights for the browser
 firmware/        prh_infer.c (runtime), app_main.c (camera + serial), generated weights
 esp32/           ESP-IDF project wrapper
 host/            test_infer.c — proves the C matches PyTorch
-docs/            static demo pages + engine.js (served by GitHub Pages)
+
 docs/            design.md, hardware.md, use-case.md
 kaggle/          dataset + kernel packaging for a GPU run
 ```

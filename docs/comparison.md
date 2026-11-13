@@ -4,23 +4,28 @@ TrashNet, six classes, 96×96, one architecture (42,960 parameters), 900 optimis
 
 | arm | accuracy | image labels | wall clock |
 |---|---|---|---|
-| supervised, end to end | 66.3 % | 2,500 | 2.3 min |
-| paper's method, classes as sentences | 48.0 % | 0 | 3.6 min |
-| paper's method + 20-shot kNN | 48.8 % | 120 | 0.1 min |
+| supervised, end to end | 58.1 % | 1,895 | 3.6 min |
+| paper's method, classes as sentences | 46.9 % | 0 | 4.0 min |
+| paper's method + 20-shot kNN | 49.2 % | 120 | 0.1 min |
+| frozen encoder, linear probe | 55.7 % | 1,895 | 10 s |
+
+Train and test are disjoint photographs (1,895 / 632). An earlier version of this file sampled the
+test set from the same pool as training and reported 66.3 / 48.0 / 48.8 — those numbers were
+inflated by leakage and are withdrawn.
 
 Chance is 16.7 %. Reproduce with `python compare.py --data trash --root ... --ckpt runs/trash.pt`.
 
 ## Reading it
 
-**Supervised wins by 18 points.** Nobody should be surprised: it sees every label, and the task is
+**Supervised wins by 11 points.** Nobody should be surprised: it sees every label, and the task is
 closed-set. If your classes are fixed and labelled, plain cross-entropy is the right tool and this
 repository has nothing to offer you.
 
-**The paper's method reaches 2.9× chance with zero image labels.** The six class names — *cardboard,
+**The paper's method reaches 2.8× chance with zero image labels.** The six class names — *cardboard,
 glass, metal, paper, plastic, trash* — are the entire specification. The encoder learned from
 photographs; the text encoder learned from the words; one rotation joined them, fitted on 512 pairs.
 
-**Twenty labelled photos per class buy 0.8 points.** That is the interesting number for an embedded
+**Twenty labelled photos per class buy 2.3 points.** That is the interesting number for an embedded
 project. Once the two spaces are aligned, adding labels is cheap but nearly pointless at this scale —
 the bottleneck is the *alignment*, not the labels. If you need more accuracy, spend the effort on the
 vision encoder and the training signal, not on more photographs.

@@ -12,6 +12,3 @@ esp32/sdkconfig.old
 # generated only when you push to Kaggle
 kaggle/upload/
 kaggle/kernel-metadata.json
-
-# the trained model is committed on purpose: GitHub Pages needs it
-!docs/model.json
