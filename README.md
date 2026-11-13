@@ -88,18 +88,18 @@ make test            # the generated C must match PyTorch (0.9986 cosine, same c
 
 ## Web demo
 
-`site/` is two static pages, no build step and no framework:
+`docs/` is two static pages (GitHub Pages serves this folder), no build step and no framework:
 
-- [`site/index.html`](site/index.html) — the image side: one photograph, the nearest caption
+- [`docs/index.html`](docs/index.html) — the image side: one photograph, the nearest caption
   prototypes, and a frame switcher that includes frames the model gets wrong.
-- [`site/chat.html`](site/chat.html) — the text side: type a sentence, get the frames nearest to it.
+- [`docs/chat.html`](docs/chat.html) — the text side: type a sentence, get the frames nearest to it.
 
 ```bash
-python -m http.server 8000     # then open http://localhost:8000/site/
+python -m http.server 8000     # then open http://localhost:8000/docs/
 ```
 
-`site/engine.js` dequantises the same int8 weights and runs the same convolutions in JavaScript:
-~30 ms per frame, against 471 ms on the board. `site/mockups/` holds the six design directions that
+`docs/engine.js` dequantises the same int8 weights and runs the same convolutions in JavaScript:
+~30 ms per frame, against 471 ms on the board. `docs/mockups/` holds the six design directions that
 were compared before the final pair and is not part of the product.
 
 ## Flash it
@@ -129,7 +129,7 @@ export_web.py    the same weights for the browser
 firmware/        prh_infer.c (runtime), app_main.c (camera + serial), generated weights
 esp32/           ESP-IDF project wrapper
 host/            test_infer.c — proves the C matches PyTorch
-site/            static demo pages + engine.js
+docs/            static demo pages + engine.js (served by GitHub Pages)
 docs/            design.md, hardware.md, use-case.md
 kaggle/          dataset + kernel packaging for a GPU run
 ```

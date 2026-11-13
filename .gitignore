@@ -14,4 +14,4 @@ kaggle/upload/
 kaggle/kernel-metadata.json
 
 # the trained model is committed on purpose: GitHub Pages needs it
-!site/model.json
+!docs/model.json

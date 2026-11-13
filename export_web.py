@@ -36,7 +36,7 @@ def q8(w, axes):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ckpt", nargs="?", default="runs/tiny.pt")
-    ap.add_argument("--out", default="site/model.json")
+    ap.add_argument("--out", default="docs/model.json")
     ap.add_argument("--root", default="data/cifar-10-batches-py")
     ap.add_argument("--demos", type=int, default=6)
     args = ap.parse_args()
