@@ -1,0 +1,17 @@
+runs/
+build/
+**/__pycache__/
+*.pt
+
+# ESP-IDF build products
+esp32/build/
+esp32/managed_components/
+esp32/sdkconfig
+esp32/sdkconfig.old
+
+# generated only when you push to Kaggle
+kaggle/upload/
+kaggle/kernel-metadata.json
+
+# the trained model is committed on purpose: GitHub Pages needs it
+!site/model.json

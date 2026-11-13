@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>prh-tiny — a photograph and the sentences it lands closest to</title>
+<style>
+  :root { --paper:#fbfbfa; --ink:#17181a; --soft:#5f6366; --hair:#e4e4e2; --mark:#2f6b45; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font: 16px/1.6 ui-serif, "New York", Georgia, "Times New Roman", serif; }
+  .page { max-width: 1000px; margin:0 auto; padding: 52px 32px 88px; }
+
+  .top { display:flex; justify-content:space-between; align-items:baseline; gap:20px;
+         border-bottom:1px solid var(--hair); padding-bottom:14px; margin-bottom:36px;
+         font-family: ui-sans-serif, system-ui, sans-serif; font-size:13px; color:var(--soft); }
+  .top a { color:var(--ink); text-decoration:none; border-bottom:1px solid var(--ink); }
+  .top a:hover { color:var(--mark); border-color:var(--mark); }
+  .top a:focus-visible { outline:2px solid var(--mark); outline-offset:3px; }
+
+  h1 { font-size: clamp(26px, 3.4vw, 36px); line-height:1.16; font-weight:400;
+       letter-spacing:-0.012em; margin:0 0 14px; max-width:20ch; }
+  .lede { font-size:16px; color:var(--soft); margin:0 0 44px; max-width:54ch; }
+  .lede b { color:var(--ink); font-weight:600; }
+
+  .print { display:grid; grid-template-columns: minmax(0,1fr) 330px; gap:56px; align-items:start; }
+  figure { margin:0; }
+  canvas#cv { display:block; width:100%; max-width:440px; height:auto; background:#ececea; border-radius:2px; }
+  figcaption { margin-top:12px; font-size:14px; color:var(--soft); display:flex; gap:14px;
+               align-items:baseline; flex-wrap:wrap; }
+  figcaption .kv { font-family: ui-monospace, monospace; font-size:13px; }
+  .nav { margin-left:auto; display:flex; gap:6px; }
+  .nav button { font:inherit; font-size:13px; background:none; border:1px solid var(--hair);
+                border-radius:4px; padding:2px 9px; color:var(--soft); cursor:pointer; }
+  .nav button:hover { border-color:var(--soft); color:var(--ink); }
+  .nav button:focus-visible { outline:2px solid var(--mark); outline-offset:2px; }
+
+  h2 { font-size:12px; font-family: ui-sans-serif, system-ui, sans-serif; font-weight:600;
+       letter-spacing:.02em; color:var(--soft); margin:0 0 4px; }
+  .sub { font-size:12.5px; color:var(--soft); margin:0 0 16px;
+         font-family: ui-sans-serif, system-ui, sans-serif; }
+
+  ol { list-style:none; margin:0; padding:0; }
+  li { display:grid; grid-template-columns:1fr auto; gap:16px; padding:7px 0; border-bottom:1px solid var(--hair); }
+  li:last-child { border-bottom:0; }
+  li .n { font-size:17px; }
+  li .v { font-family: ui-monospace, monospace; font-size:13.5px; color:var(--soft);
+          font-variant-numeric: tabular-nums; padding-top:4px; }
+  li.win .n { color:var(--mark); }
+  li.win .v { color:var(--ink); }
+  li.more { display:block; font-size:13px; color:var(--soft); border-bottom:0;
+            font-family: ui-sans-serif, system-ui, sans-serif; }
+
+  .facts { margin-top:60px; padding-top:18px; border-top:1px solid var(--hair);
+           display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:18px 28px;
+           font-family: ui-sans-serif, system-ui, sans-serif; font-size:13px; color:var(--soft); }
+  .facts b { display:block; color:var(--ink); font-size:15px; font-weight:600;
+             font-variant-numeric: tabular-nums; }
+  .note { margin-top:26px; font-size:13.5px; color:var(--soft); max-width:62ch; }
+  .status { font-size:14px; color:var(--soft); }
+  @media (max-width:760px) { .page { padding:36px 20px 64px; } .print { grid-template-columns:1fr; gap:34px; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top">
+    <span>prh-tiny · image side</span>
+    <a href="chat.html">the text side</a>
+  </div>
+
+  <h1>A photograph, and the sentences it lands closest to</h1>
+  <p class="lede">The image encoder and the text encoder were trained <b>separately</b> and never saw
+     a pair of each other. One rotation puts them in the same space, so a class is a sentence —
+     <span id="ncls">10</span> of them, ranked by cosine.</p>
+
+  <div class="print">
+    <figure>
+      <canvas id="cv" width="96" height="96" role="img"
+              aria-label="Input frame, 96 by 96 pixels, upscaled from a 32 by 32 photograph"></canvas>
+      <figcaption>
+        <span class="status" id="status">loading the model…</span>
+        <span class="nav">
+          <button id="prev" type="button" aria-label="Previous frame">←</button>
+          <button id="next" type="button" aria-label="Next frame">→</button>
+        </span>
+      </figcaption>
+    </figure>
+
+    <div>
+      <h2>Caption prototypes</h2>
+      <p class="sub" id="sub">nearest 5 by cosine</p>
+      <ol id="rank"></ol>
+    </div>
+  </div>
+
+  <div class="facts">
+    <span><b id="f-acc">—</b>top-1 on held-out photos</span>
+    <span><b id="f-chance">—</b>chance</span>
+    <span><b id="f-cca">—</b>CCA between the encoders</span>
+    <span><b>512</b>pairs fitted the rotation</span>
+    <span><b>60 KiB</b>of int8 weights</span>
+    <span><b>471 ms</b>per frame on an ESP32-S3</span>
+  </div>
+
+  <p class="note">The class list is read off sentences, not learned from labelled photographs: the
+     rotation was fitted on 512 aligned pairs and nothing else ever saw an image with a label. That is
+     why the accuracy is modest, and why the arrows are here — three of the ten frames in this gallery are misses.
+     The same int8 weights run on the ESP32-S3 in this repo.</p>
+</div>
+
+<script src="engine.js"></script>
+<script>
+(async () => {
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d');
+  const status = document.getElementById('status');
+  const rankEl = document.getElementById('rank');
+
+  let m, idx = 0, ranked = null;
+
+  try {
+    m = await loadModel('model.json');
+  } catch (err) {
+    status.textContent = 'the model did not load — reload the page';
+    return;
+  }
+
+  document.getElementById('ncls').textContent = m.names.length;
+  document.getElementById('f-acc').textContent = (m.metrics.acc * 100).toFixed(1) + '%';
+  document.getElementById('f-chance').textContent = (100 / m.names.length).toFixed(1) + '%';
+  document.getElementById('f-cca').textContent = m.metrics.cca.toFixed(2);
+  document.getElementById('sub').textContent = 'nearest 5 of ' + m.names.length + ', by cosine';
+
+  function draw(rgb) {
+    const S = m.img;
+    const img = ctx.createImageData(S, S);
+    for (let i = 0; i < S * S; i++) {
+      img.data[i * 4] = rgb[i * 3];
+      img.data[i * 4 + 1] = rgb[i * 3 + 1];
+      img.data[i * 4 + 2] = rgb[i * 3 + 2];
+      img.data[i * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function show(i) {
+    idx = (i + m.demos.length) % m.demos.length;
+    const d = m.demos[idx];
+    draw(b64ToBytes(d.rgb));
+
+    const t0 = performance.now();
+    const y = rotate(m, embedImage(m, b64ToBytes(d.rgb)));
+    const ms = performance.now() - t0;
+    ranked = rank(m, y);
+
+    status.innerHTML = 'frame ' + (idx + 1) + ' of ' + m.demos.length +
+      ' · <span class="kv">' + ms.toFixed(0) + ' ms</span>';
+    rankEl.innerHTML = ranked.slice(0, 5).map((x, k) =>
+      `<li class="${k ? '' : 'win'}"><span class="n">${x.name}</span>` +
+      `<span class="v">${x.score.toFixed(3)}</span></li>`).join('') +
+      `<li class="more">…${m.names.length - 5} more, all at or below ` +
+      `${ranked[Math.min(5, ranked.length - 1)].score.toFixed(3)}</li>`;
+  }
+
+  document.getElementById('prev').addEventListener('click', () => show(idx - 1));
+  document.getElementById('next').addEventListener('click', () => show(idx + 1));
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key === 'ArrowLeft') show(idx - 1);
+    if (ev.key === 'ArrowRight') show(idx + 1);
+  });
+
+  show(0);
+})();
+</script>
+</body>
+</html>

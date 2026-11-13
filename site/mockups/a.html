@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A — datasheet</title>
+<style>
+  :root {
+    --ink: #101215; --dim: #5d6570; --rule: #d9dde3; --bg: #ffffff;
+    --accent: #1b4fd8; --hit: #f2f5ff;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+  .sheet { max-width: 880px; margin: 0 auto; padding: 40px 24px 64px; }
+  header { display: flex; align-items: baseline; justify-content: space-between;
+           border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+  h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  .rev { color: var(--dim); font-size: 11.5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 5px 0; border-bottom: 1px solid var(--rule); vertical-align: baseline; }
+  th { width: 34%; color: var(--dim); font-weight: 400; }
+  td { font-variant-numeric: tabular-nums; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 40px; margin-top: 18px; }
+  .cols h2 { font-size: 11.5px; color: var(--dim); font-weight: 400; margin: 0 0 6px;
+             border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
+  canvas { width: 192px; height: 192px; image-rendering: auto; display: block;
+           border: 1px solid var(--rule); }
+  .frame { margin-top: 18px; display: grid; grid-template-columns: 192px 1fr; gap: 32px; align-items: start; }
+  ol { list-style: none; margin: 0; padding: 0; }
+  li { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 4px 0;
+       border-bottom: 1px solid var(--rule); }
+  li.top { background: var(--hit); }
+  li .n { padding-left: 4px; }
+  li .v { color: var(--dim); font-variant-numeric: tabular-nums; padding-right: 4px; }
+  li.top .v { color: var(--accent); font-weight: 600; }
+  .ask { margin-top: 26px; border-top: 2px solid var(--ink); padding-top: 10px; }
+  .ask label { display: block; color: var(--dim); margin-bottom: 6px; }
+  .row { display: flex; gap: 12px; align-items: baseline; }
+  input { flex: 1; font: inherit; padding: 6px 8px; border: 1px solid var(--rule); background: #fff; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  output { font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; }
+  .note { color: var(--dim); margin-top: 8px; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header>
+    <h1>prh-tiny / inference record</h1>
+    <span class="rev" id="rev">—</span>
+  </header>
+
+  <div class="cols">
+    <div>
+      <h2>Model</h2>
+      <table>
+        <tr><th>image encoder</th><td id="m-params">—</td></tr>
+        <tr><th>quantisation</th><td>int8 weights, per-channel scale</td></tr>
+        <tr><th>rotation</th><td id="m-rot">—</td></tr>
+        <tr><th>class prototypes</th><td id="m-classes">—</td></tr>
+        <tr><th>flash, total</th><td id="m-flash">—</td></tr>
+      </table>
+    </div>
+    <div>
+      <h2>Measured</h2>
+      <table>
+        <tr><th>alignment (CCA top-8)</th><td id="m-cca">—</td></tr>
+        <tr><th>zero-shot top-1</th><td id="m-acc">—</td></tr>
+        <tr><th>browser inference</th><td id="m-ms">—</td></tr>
+        <tr><th>on device, ESP32-S3</th><td>471 ms / frame</td></tr>
+        <tr><th>training pairs for R</th><td>512</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="frame">
+    <div>
+      <canvas id="cv" width="96" height="96"></canvas>
+      <div class="note">input 96 × 96, one of six<br>unlabelled camera frames</div>
+    </div>
+    <div>
+      <h2>Nearest caption prototypes</h2>
+      <ol id="rank"></ol>
+    </div>
+  </div>
+
+  <div class="ask">
+    <label for="q">Ask about this frame — the sentence is encoded, not looked up</label>
+    <div class="row">
+      <input id="q" value="yellow cross" autocomplete="off" spellcheck="false">
+      <output id="score" aria-live="polite">—</output>
+    </div>
+    <p class="note" id="qnote"></p>
+  </div>
+</div>
+
+<script src="../engine.js"></script>
+<script>
+(async () => {
+  const m = await loadModel('../model.json');
+  const rgb = demoFrame(m, 0);
+  const cv = document.getElementById('cv');
+  const octx = cv.getContext('2d');
+  const id = octx.createImageData(96, 96);
+  for (let i = 0; i < 96 * 96; i++) {
+    id.data[i * 4] = rgb[i * 3];
+    id.data[i * 4 + 1] = rgb[i * 3 + 1];
+    id.data[i * 4 + 2] = rgb[i * 3 + 2];
+    id.data[i * 4 + 3] = 255;
+  }
+  octx.putImageData(id, 0, 0);
+
+  const t0 = performance.now();
+  const y = rotate(m, embedImage(m, rgb));
+  const ms = performance.now() - t0;
+
+  const r = rank(m, y);
+  document.getElementById('rank').innerHTML = r.slice(0, 5).map((x, i) =>
+    `<li class="${i ? '' : 'top'}"><span class="n">${x.name}</span><span class="v">${x.score.toFixed(3)}</span></li>`).join('');
+
+  document.getElementById('rev').textContent = 'frame 1 of 6 · ' + m.demos[0].true;
+  document.getElementById('m-params').textContent = '43,024 params → 46 KiB';
+  document.getElementById('m-rot').textContent = m.d_img + ' → ' + m.d_txt + ' (16 KiB)';
+  document.getElementById('m-classes').textContent = m.names.length + ' × ' + m.d_txt + ' (6 KiB)';
+  document.getElementById('m-flash').textContent = '64 KiB';
+  document.getElementById('m-cca').textContent = m.metrics.cca.toFixed(3);
+  document.getElementById('m-acc').textContent = (m.metrics.acc * 100).toFixed(1) + ' %';
+  document.getElementById('m-ms').textContent = ms.toFixed(1) + ' ms';
+
+  const q = document.getElementById('q'), out = document.getElementById('score');
+  const note = document.getElementById('qnote');
+  const score = () => {
+    const e = encodeText(m, q.value);
+    if (!e) { out.textContent = 'no known word'; return; }
+    const s = cos(y, e);
+    out.textContent = s.toFixed(3);
+    const best = r[0];
+    note.textContent = s > best.score
+      ? 'above every prototype: this phrase describes the frame better than any class'
+      : 'nearest prototype is ' + best.name + ' at ' + best.score.toFixed(3);
+  };
+  q.addEventListener('input', score);
+  score();
+})();
+</script>
+</body>
+</html>
